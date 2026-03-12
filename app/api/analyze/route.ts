@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getLLMFallbackResponse, getLLMFixResponse } from "../../utils/get-llm";
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../../utils/rate-limit";
 import { validateAnalysisInput } from "../../utils/validation";
+import { authenticateRequest, getIdentityFromAuth } from "../../utils/auth";
+import { checkAndIncrementQuota } from "../../utils/quota";
 
 export async function POST(req: NextRequest) {
-  // Rate limiting
+  // Rate limiting (IP-based, before auth)
   const clientId = getClientIdentifier(req);
   const rateLimit = await checkRateLimit(clientId, RATE_LIMITS.analyze);
 
@@ -23,6 +25,35 @@ export async function POST(req: NextRequest) {
           "X-RateLimit-Reset": String(rateLimit.resetIn)
         }
       }
+    );
+  }
+
+  // Authenticate device token
+  const auth = await authenticateRequest(req);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { error: auth.message || "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  const identity = getIdentityFromAuth(auth);
+  if (!identity) {
+    return NextResponse.json(
+      { error: "Could not determine device identity" },
+      { status: 401 }
+    );
+  }
+
+  // Check monthly quota (server-side enforcement)
+  const quota = await checkAndIncrementQuota(identity.machineId, identity.tier);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      {
+        error: "Monthly analysis quota exceeded",
+        quota: { limit: quota.limit, used: quota.used, remaining: 0 }
+      },
+      { status: 403 }
     );
   }
 
@@ -61,14 +92,17 @@ export async function POST(req: NextRequest) {
       result = await getLLMFallbackResponse(fileName, input);
     }
 
-    // Return with rate limit headers
+    // Return with rate limit + quota headers
     return NextResponse.json(
       { result },
       {
         headers: {
           "X-RateLimit-Limit": String(rateLimit.limit),
           "X-RateLimit-Remaining": String(rateLimit.remaining),
-          "X-RateLimit-Reset": String(rateLimit.resetIn)
+          "X-RateLimit-Reset": String(rateLimit.resetIn),
+          "X-Quota-Limit": String(quota.limit),
+          "X-Quota-Used": String(quota.used),
+          "X-Quota-Remaining": String(quota.remaining),
         }
       }
     );
@@ -78,13 +112,13 @@ export async function POST(req: NextRequest) {
 
     if (message.includes("Invalid response") || message.includes("JSON")) {
       return NextResponse.json(
-        { error: "Failed to parse LLM response", details: message },
+        { error: "Failed to parse LLM response" },
         { status: 502 }
       );
     }
 
     return NextResponse.json(
-      { error: "Server error", details: message },
+      { error: "Server error" },
       { status: 500 }
     );
   }

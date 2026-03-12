@@ -171,17 +171,17 @@ export async function checkRateLimit(
 export function getClientIdentifier(request: Request): string {
     const forwarded = request.headers.get('x-forwarded-for');
     if (forwarded) {
-        // X-Forwarded-For can contain multiple IPs, take the first one
-        return forwarded.split(',')[0].trim();
+        // On Vercel the real client IP is always the LAST entry in the chain.
+        // Taking the first entry is spoofable — an attacker can prepend arbitrary IPs.
+        const ips = forwarded.split(',').map(ip => ip.trim()).filter(Boolean);
+        return ips[ips.length - 1];
     }
 
     const realIp = request.headers.get('x-real-ip');
     if (realIp) {
-        return realIp;
+        return realIp.trim();
     }
 
-    // Fallback - in serverless this might be the same for all requests
-    // but it's better than nothing
     return 'unknown-client';
 }
 
@@ -196,5 +196,8 @@ export const RATE_LIMITS = {
     validateToken: { limit: 10, windowSec: 60 },
 
     // Fix generation: 30 requests per minute per IP
-    fix: { limit: 30, windowSec: 60 }
+    fix: { limit: 30, windowSec: 60 },
+
+    // Device registration: 5 requests per minute per IP
+    register: { limit: 5, windowSec: 60 },
 } as const;
