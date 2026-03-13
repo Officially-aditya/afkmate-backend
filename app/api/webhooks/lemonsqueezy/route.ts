@@ -88,7 +88,13 @@ export async function POST(req: NextRequest) {
 
                 console.log(`Upgraded user ${rows[0].id.slice(0, 8)}... to tier=${targetTier}`);
             } else {
-                console.warn(`No user found for LemonSqueezy order (event=${eventName})`);
+                // User paid but their checkout email doesn't match any AFKmate account.
+                // Log the order ID so it can be manually reconciled.
+                const orderId = payload.data?.id ?? "unknown";
+                console.error(
+                    `[webhook] order_created: no AFKmate account for email="${email}" orderId=${orderId} tier=${targetTier}. ` +
+                    `User may have used a different email at checkout. Reconcile manually.`
+                );
             }
         } else if (eventName === "subscription_cancelled" || eventName === "subscription_expired" || eventName === "order_refunded") {
             const email = payload.data?.attributes?.user_email;

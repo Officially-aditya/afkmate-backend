@@ -35,6 +35,7 @@ export const auth = betterAuth({
     trustedOrigins: [
         "https://afkmate.in",
         "https://www.afkmate.in",
+        "https://api.afkmate.in",
         "vscode://afkmate",
     ],
 });

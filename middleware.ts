@@ -9,12 +9,12 @@ const ALLOWED_ORIGINS = [
     // Production domains
     "https://afkmate.in",
     "https://www.afkmate.in",
-
-    // VS Code extension (uses vscode-webview:// protocol, but requests come from localhost)
-    // The extension makes requests from the Node.js context, not browser, so Origin may be absent
+    // Backend's own origin — login page posts to /api/auth/* from the same domain
+    "https://api.afkmate.in",
 
     // Development
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
