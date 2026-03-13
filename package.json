@@ -1,20 +1,24 @@
 {
-  "name": "ecospace-agent-llm",
+  "name": "afkmate-backend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "@google/genai": "^1.11.0",
+    "@neondatabase/serverless": "^1.0.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.1",
-    "dotenv": "^17.2.1",
-    "jose": "^6.2.1",
+    "better-auth": "^1.5.5",
+    "drizzle-orm": "^0.45.1",
     "next": "^15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -24,6 +28,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.9",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

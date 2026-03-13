@@ -7,9 +7,8 @@ import type { NextRequest } from "next/server";
  */
 const ALLOWED_ORIGINS = [
     // Production domains
-    "https://afkmate.dev",
-    "https://www.afkmate.dev",
-    "https://ecospace-backend.vercel.app",
+    "https://afkmate.in",
+    "https://www.afkmate.in",
 
     // VS Code extension (uses vscode-webview:// protocol, but requests come from localhost)
     // The extension makes requests from the Node.js context, not browser, so Origin may be absent
@@ -47,7 +46,7 @@ function isOriginAllowed(origin: string | null): boolean {
  */
 function getCorsHeaders(origin: string | null): Record<string, string> {
     const headers: Record<string, string> = {
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
         "Access-Control-Max-Age": "86400", // 24 hours
     };

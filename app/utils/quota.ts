@@ -13,10 +13,9 @@ if (UPSTASH_REDIS_URL && UPSTASH_REDIS_TOKEN) {
 }
 
 const QUOTA_LIMITS: Record<string, number> = {
-    free: 30,
-    premium: -1,  // unlimited
-    pro: -1,
-    enterprise: -1,
+    free: 20,
+    premium: 60,
+    premium_plus: -1, // unlimited
 };
 
 const TTL_SECONDS = 35 * 24 * 60 * 60; // 35 days
@@ -35,10 +34,10 @@ end
 return current
 `;
 
-function getMonthKey(machineId: string): string {
+function getMonthKey(userId: string): string {
     const now = new Date();
     const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-    return `quota:${machineId}:${month}`;
+    return `quota:${userId}:${month}`;
 }
 
 // In-memory fallback for development
@@ -51,15 +50,15 @@ export interface QuotaResult {
     remaining: number;
 }
 
-export async function checkAndIncrementQuota(machineId: string, tier: string): Promise<QuotaResult> {
+export async function checkAndIncrementQuota(userId: string, tier: string): Promise<QuotaResult> {
     const limit = QUOTA_LIMITS[tier] ?? QUOTA_LIMITS.free;
 
-    // Unlimited for paid tiers
+    // Unlimited tiers
     if (limit === -1) {
         return { allowed: true, limit: -1, used: 0, remaining: -1 };
     }
 
-    const key = getMonthKey(machineId);
+    const key = getMonthKey(userId);
 
     if (redis) {
         // Atomic check-and-increment via Lua — no TOCTOU race
@@ -85,14 +84,31 @@ export async function checkAndIncrementQuota(machineId: string, tier: string): P
     return { allowed: true, limit, used: newCount, remaining: limit - newCount };
 }
 
-export async function getQuotaUsage(machineId: string, tier: string): Promise<QuotaResult> {
+export async function decrementQuota(userId: string, tier: string): Promise<void> {
+    const limit = QUOTA_LIMITS[tier] ?? QUOTA_LIMITS.free;
+    if (limit === -1) return; // unlimited, nothing to decrement
+
+    const key = getMonthKey(userId);
+
+    if (redis) {
+        await redis.decr(key);
+    } else {
+        const now = Date.now();
+        const entry = inMemoryQuota.get(key);
+        if (entry && now < entry.resetTime && entry.count > 0) {
+            entry.count--;
+        }
+    }
+}
+
+export async function getQuotaUsage(userId: string, tier: string): Promise<QuotaResult> {
     const limit = QUOTA_LIMITS[tier] ?? QUOTA_LIMITS.free;
 
     if (limit === -1) {
         return { allowed: true, limit: -1, used: 0, remaining: -1 };
     }
 
-    const key = getMonthKey(machineId);
+    const key = getMonthKey(userId);
     let used: number;
 
     if (redis) {

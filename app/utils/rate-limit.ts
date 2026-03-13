@@ -191,13 +191,4 @@ export function getClientIdentifier(request: Request): string {
 export const RATE_LIMITS = {
     // Analysis endpoint: 20 requests per minute per IP
     analyze: { limit: 20, windowSec: 60 },
-
-    // Token validation: 10 requests per minute per IP (prevent brute force)
-    validateToken: { limit: 10, windowSec: 60 },
-
-    // Fix generation: 30 requests per minute per IP
-    fix: { limit: 30, windowSec: 60 },
-
-    // Device registration: 5 requests per minute per IP
-    register: { limit: 5, windowSec: 60 },
 } as const;

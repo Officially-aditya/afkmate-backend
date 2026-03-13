@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getLLMFallbackResponse, getLLMFixResponse } from "../../utils/get-llm";
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../../utils/rate-limit";
 import { validateAnalysisInput } from "../../utils/validation";
-import { authenticateRequest, getIdentityFromAuth } from "../../utils/auth";
-import { checkAndIncrementQuota } from "../../utils/quota";
+import { requireAuth, AuthError } from "../../utils/auth";
+import { checkAndIncrementQuota, decrementQuota } from "../../utils/quota";
 
 export async function POST(req: NextRequest) {
   // Rate limiting (IP-based, before auth)
@@ -28,25 +28,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Authenticate device token
-  const auth = await authenticateRequest(req);
-  if (!auth.authenticated) {
+  // Authenticate via BetterAuth session
+  let userId: string;
+  let tier: string;
+  try {
+    const identity = await requireAuth(req);
+    userId = identity.userId;
+    tier = identity.tier;
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json(
+        { error: err.message },
+        { status: err.statusCode }
+      );
+    }
     return NextResponse.json(
-      { error: auth.message || "Authentication required" },
-      { status: 401 }
-    );
-  }
-
-  const identity = getIdentityFromAuth(auth);
-  if (!identity) {
-    return NextResponse.json(
-      { error: "Could not determine device identity" },
+      { error: "Authentication failed" },
       { status: 401 }
     );
   }
 
   // Check monthly quota (server-side enforcement)
-  const quota = await checkAndIncrementQuota(identity.machineId, identity.tier);
+  const quota = await checkAndIncrementQuota(userId, tier);
   if (!quota.allowed) {
     return NextResponse.json(
       {
@@ -86,10 +89,10 @@ export async function POST(req: NextRequest) {
     if (mode === 'fix' && issue) {
       // Fix mode: generate a fix for a specific issue
       console.log(`[Fix Mode] Generating fix for issue at line ${issue.line}: ${issue.message}`);
-      result = await getLLMFixResponse(input, issue, fileName, fullFileContext);
+      result = await getLLMFixResponse(input, issue, fileName, fullFileContext, tier);
     } else {
       // Analyze mode: run full analysis
-      result = await getLLMFallbackResponse(fileName, input);
+      result = await getLLMFallbackResponse(fileName, input, tier);
     }
 
     // Return with rate limit + quota headers
@@ -107,6 +110,9 @@ export async function POST(req: NextRequest) {
       }
     );
   } catch (err) {
+    // Rollback quota since the LLM call failed and user got no result
+    await decrementQuota(userId, tier).catch(() => {});
+
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("LLM API Error:", message, err);
 

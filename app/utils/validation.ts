@@ -208,34 +208,3 @@ function sanitizeCodeInput(input: string): string {
     return sanitized;
 }
 
-/**
- * Check if file extension is allowed for analysis
- */
-export function isAllowedFileType(fileName: string): boolean {
-    const ext = fileName.split('.').pop()?.toLowerCase() || '';
-    return ALLOWED_EXTENSIONS.has(ext) || ext === ''; // Allow extensionless files
-}
-
-/**
- * Validate token format (basic check before hitting the crypto validation)
- */
-export function validateTokenFormat(token: any): { valid: boolean; error?: string } {
-    if (!token || typeof token !== 'string') {
-        return { valid: false, error: 'Token must be a non-empty string' };
-    }
-
-    if (token.length > 200) {
-        return { valid: false, error: 'Token too long' };
-    }
-
-    if (token.length < 20) {
-        return { valid: false, error: 'Token too short' };
-    }
-
-    // Basic format check
-    if (!token.startsWith('AFKMATE-')) {
-        return { valid: false, error: 'Invalid token format' };
-    }
-
-    return { valid: true };
-}

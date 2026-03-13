@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EcoSpace Code Analysis API",
-  description: "Code analysis and security scanning API powered by AI",
+  title: "AFKmate Code Analysis API",
+  description: "AFKmate - Your AFK coding companion with AI code analysis",
 };
 
 export default function RootLayout({
