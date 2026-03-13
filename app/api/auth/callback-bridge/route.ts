@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Only allow redirecting to the VS Code extension scheme.
 // This prevents this endpoint from being used as an open redirector.
-const ALLOWED_REDIRECT_PREFIX = "vscode://afkmate/";
+const ALLOWED_REDIRECT_PREFIX = "vscode://afkmate.afkmate/";
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);

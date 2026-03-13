@@ -36,6 +36,6 @@ export const auth = betterAuth({
         "https://afkmate.in",
         "https://www.afkmate.in",
         "https://api.afkmate.in",
-        "vscode://afkmate",
+        "vscode://afkmate.afkmate",
     ],
 });
