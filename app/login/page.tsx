@@ -6,15 +6,18 @@ import { Suspense } from "react";
 function LoginForm() {
     const searchParams = useSearchParams();
     const redirectUri = searchParams.get("redirect_uri") || "";
+    const next = searchParams.get("next") || "";
 
     const backendUrl = process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "";
 
     const handleSignIn = (provider: "github" | "google") => {
-        // Route through the callback bridge so the session token gets extracted
-        // from the cookie and appended to the redirect_uri as a query param.
-        // For browser-only flows (no redirect_uri), redirect to "/" after sign-in.
+        // redirect_uri = VS Code extension flow (goes through callback-bridge to extract token)
+        // next         = web flow (redirect directly to a path on this backend after sign-in)
+        // neither      = plain web sign-in, go to home
         const callbackURL = redirectUri
             ? `/api/auth/callback-bridge?redirect_uri=${encodeURIComponent(redirectUri)}`
+            : next
+            ? next
             : "/";
         const url = `${backendUrl}/api/auth/sign-in/social`;
 
@@ -121,6 +124,11 @@ function LoginForm() {
                 {redirectUri && (
                     <p style={{ color: "#555", fontSize: 12, marginTop: 20 }}>
                         Signing in for VS Code extension
+                    </p>
+                )}
+                {next && (
+                    <p style={{ color: "#555", fontSize: 12, marginTop: 20 }}>
+                        You&apos;ll be taken to checkout after signing in
                     </p>
                 )}
             </div>

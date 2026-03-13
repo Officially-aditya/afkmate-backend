@@ -48,7 +48,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check monthly quota (server-side enforcement)
+  // Parse and validate request body BEFORE consuming quota — prevents wasting
+  // a quota slot on a malformed request the user can fix for free.
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON in request body" },
+      { status: 400 }
+    );
+  }
+
+  const validation = validateAnalysisInput(body);
+  if (!validation.valid) {
+    return NextResponse.json(
+      { error: validation.error },
+      { status: 400 }
+    );
+  }
+
+  // Check monthly quota (server-side enforcement) — only after input is valid
   const quota = await checkAndIncrementQuota(userId, tier);
   if (!quota.allowed) {
     return NextResponse.json(
@@ -61,26 +81,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Parse and validate request body
-    let body: any;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
-      );
-    }
-
-    // Validate and sanitize input
-    const validation = validateAnalysisInput(body);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error },
-        { status: 400 }
-      );
-    }
-
     const { input, fileName, mode, issue, fullFileContext } = validation.sanitized!;
 
     let result;
@@ -111,7 +111,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     // Rollback quota since the LLM call failed and user got no result
-    await decrementQuota(userId, tier).catch(() => {});
+    await decrementQuota(userId, tier).catch((rollbackErr) => {
+      console.error("Quota rollback failed after LLM error:", rollbackErr);
+    });
 
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("LLM API Error:", message, err);

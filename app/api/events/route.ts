@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
                     send("quota", { tier, quota: currentQuota });
                 } catch {
                     clearInterval(heartbeat);
+                    // Close the stream so the client's 'end' event fires and it reconnects
+                    try { controller.close(); } catch { /* already closed */ }
                 }
             }, 30_000);
 

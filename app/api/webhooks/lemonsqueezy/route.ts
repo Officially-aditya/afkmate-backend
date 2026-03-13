@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
                     `User may have used a different email at checkout. Reconcile manually.`
                 );
             }
-        } else if (eventName === "subscription_cancelled" || eventName === "subscription_expired" || eventName === "order_refunded") {
+        } else if (eventName === "subscription_cancelled" || eventName === "subscription_expired" || eventName === "subscription_payment_failed" || eventName === "order_refunded") {
             const email = payload.data?.attributes?.user_email;
             if (email) {
                 const rows = await db
