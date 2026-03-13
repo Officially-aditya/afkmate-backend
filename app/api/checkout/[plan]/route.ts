@@ -44,31 +44,54 @@ export async function GET(
         return NextResponse.json({ error: "Checkout not configured" }, { status: 500 });
     }
 
-    // Fetch the variant from LemonSqueezy to get the canonical buy_now_url
-    const lsRes = await fetch(`https://api.lemonsqueezy.com/v1/variants/${variantId}`, {
+    const storeId = process.env.LEMONSQUEEZY_STORE_ID;
+    if (!storeId) {
+        return NextResponse.json({ error: "Checkout not configured" }, { status: 500 });
+    }
+
+    // Create a checkout session via LemonSqueezy API so we can pre-fill the
+    // user's email and guarantee the webhook maps to the right account.
+    const email = session.user.email;
+    const lsRes = await fetch("https://api.lemonsqueezy.com/v1/checkouts", {
+        method: "POST",
         headers: {
             Authorization: `Bearer ${apiKey}`,
             Accept: "application/vnd.api+json",
+            "Content-Type": "application/vnd.api+json",
         },
+        body: JSON.stringify({
+            data: {
+                type: "checkouts",
+                attributes: {
+                    checkout_data: {
+                        email,
+                    },
+                },
+                relationships: {
+                    store: {
+                        data: { type: "stores", id: String(storeId) },
+                    },
+                    variant: {
+                        data: { type: "variants", id: String(variantId) },
+                    },
+                },
+            },
+        }),
     });
 
     if (!lsRes.ok) {
-        console.error(`LemonSqueezy variant fetch failed: ${lsRes.status} for variantId=${variantId}`);
-        return NextResponse.json({ error: "Failed to load checkout URL" }, { status: 502 });
+        const body = await lsRes.text();
+        console.error(`LemonSqueezy checkout creation failed: ${lsRes.status} — ${body}`);
+        return NextResponse.json({ error: "Failed to create checkout" }, { status: 502 });
     }
 
     const data = await lsRes.json();
-    let checkoutUrl: string = data?.data?.attributes?.buy_now_url;
+    const checkoutUrl: string | undefined = data?.data?.attributes?.url;
 
     if (!checkoutUrl) {
-        console.error(`No buy_now_url in LemonSqueezy response for variantId=${variantId}`);
+        console.error("No checkout URL in LemonSqueezy response:", JSON.stringify(data));
         return NextResponse.json({ error: "Checkout URL not available" }, { status: 502 });
     }
-
-    // Pre-fill the user's email so checkout email always matches their AFKmate account
-    const email = session.user.email;
-    const separator = checkoutUrl.includes("?") ? "&" : "?";
-    checkoutUrl = `${checkoutUrl}${separator}checkout[email]=${encodeURIComponent(email)}`;
 
     return NextResponse.redirect(checkoutUrl, { status: 302 });
 }
