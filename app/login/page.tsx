@@ -10,7 +10,7 @@ function LoginForm() {
 
     const backendUrl = process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "";
 
-    const handleSignIn = (provider: "github" | "google") => {
+    const handleSignIn = async (provider: "github" | "google") => {
         // redirect_uri = VS Code extension flow (goes through callback-bridge to extract token)
         // next         = web flow (redirect directly to a path on this backend after sign-in)
         // neither      = plain web sign-in, go to home
@@ -21,26 +21,16 @@ function LoginForm() {
             : "/";
         const url = `${backendUrl}/api/auth/sign-in/social`;
 
-        // POST via form submission to the BetterAuth endpoint
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = url;
-
-        const fields = [
-            { name: "provider", value: provider },
-            { name: "callbackURL", value: callbackURL },
-        ];
-
-        fields.forEach(({ name, value }) => {
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = name;
-            input.value = value;
-            form.appendChild(input);
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider, callbackURL }),
         });
 
-        document.body.appendChild(form);
-        form.submit();
+        const data = await res.json();
+        if (data?.url) {
+            window.location.href = data.url;
+        }
     };
 
     return (
